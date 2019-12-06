@@ -16,38 +16,40 @@ var firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 firebase.analytics();
 
+
 app.ports.isLogin.subscribe(function () {
   const isLogin = firebase.auth().isSignInWithEmailLink(window.location.href)
-  console.log(isLogin)
-  const email = window.localStorage.getItem('emailForSignIn');
-  if (isLogin) {
-    firebase.auth().signInWithEmailLink(email, window.location.href)
-      .then(function (result) {
-        console.log('login success!!')
-        console.log(result)
-        firebase.auth().currentUser.getIdToken().then(function (data) {
-          console.log(data)
-        });
-        window.localStorage.removeItem('emailForSignIn');
-      })
-      .catch(function (error) {
-        console.log(`Error ${error}`)
-      });
-  }
+  console.log('isLogin?', isLogin)
   app.ports.checkLogin.send(isLogin)
 })
+
+
+app.ports.signInWithEmail.subscribe(function () {
+  const email = window.localStorage.getItem('emailForSignIn');
+  firebase.auth().signInWithEmailLink(email, window.location.href)
+    .then(function (result) {
+      // result : object of user information
+      firebase.auth().currentUser.getIdToken()
+        .then(function (token) {
+          app.ports.loginSuccess.send(token)
+        });
+      window.localStorage.removeItem('emailForSignIn');
+    })
+    .catch(function (error) {
+      console.log(`Error ${error}`)
+    });
+})
+
 
 app.ports.sendLoginLink.subscribe(function (email) {
   var actionCodeSettings = {
     url: "http://localhost:1234",
-    // This must be true.
     handleCodeInApp: true
   };
 
   firebase.auth()
     .sendSignInLinkToEmail(email, actionCodeSettings)
     .then(function () {
-      console.log('email', email)
       window.localStorage.setItem('emailForSignIn', email);
     })
     .catch(function (error) {
