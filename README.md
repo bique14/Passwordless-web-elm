@@ -20,7 +20,7 @@ isLogin -- True --> signInWithEmail
 sendLink --> signInWithEmail
 signInWithEmail --> fetchContent
 fetchContent --> content
-content -- "[F5] Refresh page" --> error
+content -- "[F5] Refresh page<br>IsLogin : True" --> error
 error --> dead
 
 
