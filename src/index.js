@@ -33,7 +33,7 @@ app.ports.signInWithEmail.subscribe(function () {
         .then(function (token) {
           app.ports.loginSuccess.send(token)
         });
-      window.localStorage.removeItem('emailForSignIn');
+      // window.localStorage.removeItem('emailForSignIn');
     })
     .catch(function (error) {
       console.log(`Error ${error}`)

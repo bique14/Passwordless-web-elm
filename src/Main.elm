@@ -37,8 +37,8 @@ subscriptions _ =
 type State
     = Init
     | Login (Maybe String)
-    | FetchContent
-    | Content
+    | FetchContent FetchContentCarry
+    | Content (List Content.Post)
 
 
 type Msg
@@ -48,6 +48,11 @@ type Msg
     | CheckLogin Bool
     | LoginSuccess String
     | FetchingContentMsg (Result Http.Error Content.Content)
+    | FetchingExpressMsg (Result Http.Error Content.Email)
+
+
+type alias FetchContentCarry =
+    { token : Maybe String }
 
 
 type alias Model =
@@ -77,7 +82,11 @@ update msg state =
         ( Init, CheckLogin b ) ->
             case b of
                 True ->
-                    ( FetchContent, signInWithEmail () )
+                    let
+                        fcarry =
+                            FetchContentCarry Nothing
+                    in
+                    ( FetchContent fcarry, signInWithEmail () )
 
                 False ->
                     ( Login Nothing, Cmd.none )
@@ -93,24 +102,50 @@ update msg state =
                 Nothing ->
                     ( state, Cmd.none )
 
-        ( FetchContent, LoginSuccess token ) ->
+        ( FetchContent carry, LoginSuccess token ) ->
             let
                 furl =
                     "http://localhost:2368/ghost/api/v3/content/posts/?key=82e1c84504fd30e47a5aad07da"
 
                 _ =
                     Debug.log "TOKEN" token
-            in
-            ( FetchContent, Content.fetchContent FetchingContentMsg furl )
 
-        ( FetchContent, FetchingContentMsg fmsg ) ->
+                fcarry =
+                    FetchContentCarry (Just token)
+            in
+            ( FetchContent fcarry, Content.fetchContent FetchingContentMsg furl )
+
+        ( FetchContent carry, FetchingContentMsg fmsg ) ->
+            case fmsg of
+                Ok r ->
+                    let
+                        { posts } =
+                            r
+
+                        eurl =
+                            "http://localhost:3000/fire"
+
+                        _ =
+                            Debug.log "token" (Just carry.token)
+                    in
+                    case carry.token of
+                        Just t ->
+                            ( Content posts, Content.fetchExpress FetchingExpressMsg t eurl )
+
+                        Nothing ->
+                            ( state, Cmd.none )
+
+                Err _ ->
+                    ( state, Cmd.none )
+
+        ( Content p, FetchingExpressMsg fmsg ) ->
             case fmsg of
                 Ok r ->
                     let
                         _ =
-                            Debug.log "response" r
+                            Debug.log "EXPRESS" r
                     in
-                    ( Content, Cmd.none )
+                    ( state, Cmd.none )
 
                 Err _ ->
                     ( state, Cmd.none )
@@ -139,8 +174,29 @@ view state =
                         [ text "send link" ]
                     ]
 
-            Content ->
-                div [] [ text "Login Success!" ]
+            FetchContent _ ->
+                div [] [ text "Loading .." ]
+
+            Content posts ->
+                let
+                    _ =
+                        Debug.log "** posts" posts
+                in
+                div []
+                    (List.map
+                        (\p ->
+                            div [ class "m-4 p-4 rounded bg-blue-200" ]
+                                [ span [ class "font-bold" ] [ text p.title ]
+                                , a
+                                    [ class "block hover:bg-blue-400"
+                                    , href p.url
+                                    , target "_blank"
+                                    ]
+                                    [ text p.url ]
+                                ]
+                        )
+                        posts
+                    )
 
             _ ->
                 div [] [ text "Hello world" ]

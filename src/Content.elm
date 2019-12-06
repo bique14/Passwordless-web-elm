@@ -39,3 +39,37 @@ decodePost =
     Decode.succeed Post
         |> DecodePipeline.required "title" Decode.string
         |> DecodePipeline.required "url" Decode.string
+
+
+type alias Email =
+    { email : String }
+
+
+constructHeaders : List Http.Header -> String -> List Http.Header
+constructHeaders headers token =
+    headers
+        ++ [ generateAuthorizationHeader token
+           ]
+
+
+generateAuthorizationHeader : String -> Http.Header
+generateAuthorizationHeader token =
+    Http.header "Authorization" <| "Bearer " ++ token
+
+
+fetchExpress : (Result Http.Error Email -> msg) -> String -> String -> Cmd msg
+fetchExpress toMsg token url =
+    Http.request
+        { method = "GET"
+        , headers = constructHeaders [] token
+        , url = url
+        , body = Http.emptyBody
+        , expect = Http.expectJson toMsg decodeExpress
+        , timeout = Nothing
+        , tracker = Nothing
+        }
+
+
+decodeExpress : Decode.Decoder Email
+decodeExpress =
+    Decode.succeed Email |> DecodePipeline.required "email" Decode.string
