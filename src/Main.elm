@@ -2,9 +2,11 @@ port module Main exposing (main)
 
 import Browser
 import Browser.Navigation as Nav
+import Content
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
+import Http
 import Json.Decode as Decode
 import Url
 
@@ -15,20 +17,28 @@ port sendLoginLink : String -> Cmd msg
 port isLogin : () -> Cmd msg
 
 
+port signInWithEmail : () -> Cmd msg
+
+
 port checkLogin : (Bool -> msg) -> Sub msg
+
+
+port loginSuccess : (String -> msg) -> Sub msg
 
 
 subscriptions : State -> Sub Msg
 subscriptions _ =
     Sub.batch
         [ checkLogin CheckLogin
+        , loginSuccess LoginSuccess
         ]
 
 
 type State
     = Init
     | Login (Maybe String)
-    | Profile
+    | FetchContent
+    | Content
 
 
 type Msg
@@ -36,6 +46,8 @@ type Msg
     | Email String
     | SendLink
     | CheckLogin Bool
+    | LoginSuccess String
+    | FetchingContentMsg (Result Http.Error Content.Content)
 
 
 type alias Model =
@@ -65,7 +77,7 @@ update msg state =
         ( Init, CheckLogin b ) ->
             case b of
                 True ->
-                    ( Profile, Cmd.none )
+                    ( FetchContent, signInWithEmail () )
 
                 False ->
                     ( Login Nothing, Cmd.none )
@@ -79,6 +91,28 @@ update msg state =
                     ( state, sendLoginLink e )
 
                 Nothing ->
+                    ( state, Cmd.none )
+
+        ( FetchContent, LoginSuccess token ) ->
+            let
+                furl =
+                    "http://localhost:2368/ghost/api/v3/content/posts/?key=82e1c84504fd30e47a5aad07da"
+
+                _ =
+                    Debug.log "TOKEN" token
+            in
+            ( FetchContent, Content.fetchContent FetchingContentMsg furl )
+
+        ( FetchContent, FetchingContentMsg fmsg ) ->
+            case fmsg of
+                Ok r ->
+                    let
+                        _ =
+                            Debug.log "response" r
+                    in
+                    ( Content, Cmd.none )
+
+                Err _ ->
                     ( state, Cmd.none )
 
         _ ->
@@ -105,7 +139,7 @@ view state =
                         [ text "send link" ]
                     ]
 
-            Profile ->
+            Content ->
                 div [] [ text "Login Success!" ]
 
             _ ->
